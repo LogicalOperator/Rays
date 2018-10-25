@@ -6,18 +6,15 @@
 //  Copyright © 2017 jparsons. All rights reserved.
 //
 
-
-
-
 #import "RaysView.h"
 @import QuartzCore;
 
 @implementation RaysView
 
-static NSString* const MyModuleName = @"com.kireji.Rays";
+NSString* bundleId;
 
 //image
-NSImage *img;
+NSImage* img;
 
 // image selected in option but not yet saved
 NSImage* imgSelected;
@@ -30,13 +27,8 @@ NSURL* imgAltResSelectedURL;
 
 NSDictionary* dict;
 
-ScreenSaverDefaults *defaults;
+ScreenSaverDefaults* defaults;
 
-NSSize screen_size;
-
-float container_edge_length;
-
-NSString* const barsCountKey = @"barsCount";
 
 
 #pragma mark -
@@ -45,10 +37,14 @@ NSString* const barsCountKey = @"barsCount";
 - (instancetype)initWithFrame:(NSRect)frame isPreview:(BOOL)isPreview
 {
     self = [super initWithFrame:frame isPreview:isPreview];
-    
+	
+	// get bundle id for this class
+	bundleId = [[[NSBundle bundleForClass:[RaysView class]] infoDictionary] objectForKey:@"CFBundleIdentifier"];
+	
+	
     if (self) {
         #if DEBUG
-			NSLog(@"kireji*** %@ hello!", MyModuleName);
+			NSLog(@"%@ hello!", bundleId);
         #endif
         
         // ready up color picker
@@ -56,7 +52,7 @@ NSString* const barsCountKey = @"barsCount";
         
         
         // if no user defaults, load app defaults... defaults need to load the first time to be available for preview
-        defaults = [ScreenSaverDefaults defaultsForModuleWithName:MyModuleName];
+		defaults = [ScreenSaverDefaults defaultsForModuleWithName:bundleId];
 		
 		
         // it seems setting a property to nil will cause the program to use the default values here...
@@ -102,20 +98,21 @@ NSString* const barsCountKey = @"barsCount";
 
 - (void)startAnimation
 {
-	// get screen size
-    screen_size = [self bounds].size;
-    
-    dict = [NSMutableDictionary dictionaryWithContentsOfFile:[[NSBundle bundleForClass:[RaysView class]] pathForResource:@"FactoryDefaults" ofType:@"plist"]];
-    
-    // calculate width of bounding layer
-    // set it larger than the screen size to handle rotation... quick hack...
+	// get context size
+	NSSize screen_size = [self bounds].size;
+	
+	// calculate width of bounding layer
+	// set it larger than the screen size to handle rotation... quick hack...
 	// this also hides a bug:
 	//	when bars are re-generated (call to generateBarWithLayer) after animation is finished and the new bar is wider than the previous bar, it will briefly appear on the edge of the screen before swiftly moving along
-    container_edge_length = MAX(screen_size.width, screen_size.height) * 1.5f;
-    
+	float container_edge_length = container_edge_length = MAX(screen_size.width, screen_size.height) * 1.5f;
+	
+	
+    dict = [NSMutableDictionary dictionaryWithContentsOfFile:[[NSBundle bundleForClass:[RaysView class]] pathForResource:@"FactoryDefaults" ofType:@"plist"]];
+	
     [self.layer addSublayer:[self generateImgLayer]];
 
-    
+
     CALayer* barsMasterLayer = [CALayer layer];
     
     
@@ -144,7 +141,7 @@ NSString* const barsCountKey = @"barsCount";
 
 - (void)stopAnimation {
     #if DEBUG
-        NSLog(@"%@ stopAnimation", MyModuleName);
+		NSLog(@"%@ stopAnimation", bundleId);
     #endif
     
     // remove all sublayers
@@ -154,34 +151,10 @@ NSString* const barsCountKey = @"barsCount";
 }
 
 
-- (void)drawRect:(NSRect)rect {
-//    [super drawRect:rect];
-
-    // changing to paint base layer...
-    // paint BG
-//    NSColor* color;
-//    CGFloat backgroundColorComponents[4] = {[defaults floatForKey:kBackgroundRedKey], [defaults floatForKey:kBackgroundGreenKey], [defaults floatForKey:kBackgroundBlueKey], 1.0};
-//    color = [NSColor colorWithCGColor:CGColorCreate(CGColorSpaceCreateDeviceRGB(), backgroundColorComponents)];
-//    
-//    NSBezierPath* path;
-//    NSRect rect2;
-//    
-//    rect2.size = [self bounds].size;
-//    rect2.origin = NSMakePoint(0, 0);
-//    
-//    path = [NSBezierPath bezierPathWithRect:rect2];
-//    
-//    [color set];
-//    [path fill];
-//    [path stroke];
-}
+- (void)drawRect:(NSRect)rect {}
 
 
-- (void)animateOneFrame {
-    // causes the layer content to be drawn in -drawRect:
-//    [self.layer setNeedsDisplay];
-    return;
-}
+- (void)animateOneFrame {}
 
 
 - (BOOL)hasConfigureSheet {
@@ -192,12 +165,12 @@ NSString* const barsCountKey = @"barsCount";
 - (NSWindow*)configureSheet {
     
     ScreenSaverDefaults *defaults;
-    
-    defaults = [ScreenSaverDefaults defaultsForModuleWithName:MyModuleName];
+	
+	defaults = [ScreenSaverDefaults defaultsForModuleWithName:bundleId];
     
     if (!configSheet) {
         if (![NSBundle loadNibNamed:@"ConfigureSheet" owner:self]) {
-            NSLog( @"kireji*** Failed to load configure sheet." );
+            NSLog( @"%@ Failed to load configure sheet.", bundleId );
             NSBeep();
         }
     }
@@ -205,8 +178,8 @@ NSString* const barsCountKey = @"barsCount";
     [self setControls];
     
     #if DEBUG
-//        NSLog(@"kireji*** %li", (long)[defaults integerForKey:@"barsCountMax"]);
-//        NSLog(@"kireji*** barsCountMaxSlider: %li", (long)[barsCountBaseSlider integerValue]);
+//        NSLog(@"%@ %li", bundleId (long)[defaults integerForKey:@"barsCountMax"]);
+//        NSLog(@"%@ barsCountMaxSlider: %li", bundleId (long)[barsCountBaseSlider integerValue]);
     #endif
     
     return configSheet;
@@ -228,19 +201,19 @@ NSString* const barsCountKey = @"barsCount";
 // Pass finished layer to function to tweak its parameters
 -(void)animationDidStop:(CAAnimation*)animation finished:(BOOL)finished {
 	
-	#if DEBUG
-		NSLog(@"kireji*** animation finished yep!");
-	#endif
-	
 	if (finished == YES) {
 		CALayer* finishedLayer = [animation valueForKey:@"layer"];
 		
 		// tweak bar layer properties and animation
 		[self generateBarLayerWithLayer:finishedLayer zPosition:finishedLayer.zPosition];
+		
+		#if DEBUG
+			//NSLog(@"%@ animation finished yep!", bundleId);
+		#endif
 	}
 	#if DEBUG
 	else {
-		NSLog(@"kireji*** bar removed but wasn't finished!");
+//		NSLog(@"%@ bar removed but wasn't finished!", bundleId);
 	}
 	#endif
 	
@@ -252,7 +225,6 @@ NSString* const barsCountKey = @"barsCount";
 	
 	CALayer* layer = [CALayer layer];
 	
-	//    layer = [self generateBarLayerWithLayer:layer zPosition:zPosition];
 	[self generateBarLayerWithLayer:layer zPosition:zPosition];
 	
 	return layer;
@@ -261,14 +233,25 @@ NSString* const barsCountKey = @"barsCount";
 
 // Generates 'bars', tweaks layer parameters
 -(void)generateBarLayerWithLayer:(CALayer*)layer zPosition:(int)zPos {
+	
+	// get context size
+	NSSize screen_size = [self bounds].size;
+	
+	// calculate width of bounding layer
+	// set it larger than the screen size to handle rotation... quick hack...
+	// this also hides a bug:
+	//	when bars are re-generated (call to generateBarWithLayer) after animation is finished and the new bar is wider than the previous bar, it will briefly appear on the edge of the screen before swiftly moving along
+	float container_edge_length = container_edge_length = MAX(screen_size.width, screen_size.height) * 1.5f;
+	
+
+	
 	// setup basic layer properties: height, width, color, opacity
-	NSRect bar = NSZeroRect;
+	NSRect layer_rect = NSZeroRect;
 	
 	// calc bar size from screen width and height
 	float random_size_factor = SSRandomFloatBetween([defaults floatForKey:kBarsWidthFactorMinKey], [defaults floatForKey:kBarsWidthFactorMaxKey]);
-	bar.size = NSMakeSize(screen_size.width * random_size_factor, container_edge_length * 1.5f);
-	
-//	bar.origin = NSMakePoint(0, 0);
+	layer_rect.size = NSMakeSize(screen_size.width * random_size_factor, container_edge_length * 1.5f);
+
 	
 	float opacity = SSRandomFloatBetween([defaults floatForKey:kBarsOpacityMinKey], [defaults floatForKey:kBarsOpacityMaxKey]);
 	
@@ -285,7 +268,7 @@ NSString* const barsCountKey = @"barsCount";
 	layer.zPosition = zPos;
 	
 	//set layer frame to rect dimensions
-	layer.frame = NSRectToCGRect(bar);
+	layer.frame = NSRectToCGRect(layer_rect);
 	
 	
 	
@@ -301,27 +284,41 @@ NSString* const barsCountKey = @"barsCount";
 	
 	// from older version where min/max duration could be set by user... read these values from config.
 	float anim_duration = SSRandomFloatBetween([defaults floatForKey:kBarsAnimDurationMaxKey], [defaults floatForKey:kBarsAnimDurationMinKey]);
+
 	
-	// bars proto config 1/4 chance of L->R
+	// left screen edge minus the width of containing layer (place the bar just offscreen to left)
+	CGFloat x_left = 0 - layer.frame.size.width;
+	// right edge of screen plus width of containing layer (place the bar just offscreen to the right)
+	CGFloat x_right = container_edge_length + layer.frame.size.width;
+	// keep centered
+	CGFloat y_mid = screen_size.height/2;
+	
+	NSPoint layer_from_point;
+	NSPoint layer_to_point;
+	
+	// setup bar animation, bars proto config 1/4 chance of L->R
 	if (SSRandomFloatBetween(0, 1.0) <= 0.25) {
-		//setup layer animation L -> R
-		[layer  setPosition:NSMakePoint(0 - bar.size.width, 0)];
-		// start point (0 - bar width, screen vertical midpoint)
-		[animation setFromValue:[NSValue valueWithPoint:NSMakePoint(0 - bar.size.width, screen_size.height / 2)]];
-		// end point (screen width + bar width, screen vertical midpoint)
-		[animation setToValue:[NSValue valueWithPoint:NSMakePoint(container_edge_length + bar.size.width, screen_size.height / 2)]];
+		// L -> R
+		layer_from_point = NSMakePoint(x_left, y_mid);
+		layer_to_point = NSMakePoint(x_right, y_mid);
 	}
 	else {
 		// L <- R
-		[layer  setPosition:NSMakePoint(container_edge_length + bar.size.width, 0)];
-		// start point (screen width + bar width, screen vertical midpoint)
-		[animation setFromValue:[NSValue valueWithPoint:NSMakePoint(container_edge_length + bar.size.width, screen_size.height / 2)]];
-		// end point (0 - bar width, screen vertical midpoint)
-		[animation setToValue:[NSValue valueWithPoint:NSMakePoint(0 - bar.size.width, screen_size.height / 2)]];
+		layer_from_point = NSMakePoint(x_right, y_mid);
+		layer_to_point = NSMakePoint(x_left, y_mid);
 	}
 	
+	[layer  setPosition:layer_from_point];
+	[animation setFromValue:[NSValue valueWithPoint:layer_from_point]];
+	[animation setToValue:[NSValue valueWithPoint:layer_to_point]];
+	
+	#if DEBUG
+		NSLog(@"%@ container_edge_length: %f", bundleId, container_edge_length);
+		NSLog(@"%@ bar.height: %f", bundleId, layer_rect.size.width);
+	#endif
+	
 	[animation setDuration:anim_duration];
-	// set animation speed...
+	
 	[animation setSpeed:[defaults floatForKey:kBarsAnimationSpeedKey]];
 	
 	[layer addAnimation:animation forKey:@"position"];
@@ -330,27 +327,33 @@ NSString* const barsCountKey = @"barsCount";
 
 // Creates image layer, loads image, scales (if necessary), places image, and sets up image fade-in/-out
 -(CALayer*)generateImgLayer {
+
+	// get context size
+	NSSize screen_size = [self bounds].size;
+	
+	// calculate width of bounding layer
+	// set it larger than the screen size to handle rotation... quick hack...
+	// this also hides a bug:
+	//	when bars are re-generated (call to generateBarWithLayer) after animation is finished and the new bar is wider than the previous bar, it will briefly appear on the edge of the screen before swiftly moving along
+	float container_edge_length = container_edge_length = MAX(screen_size.width, screen_size.height) * 1.5f;
+	
+	
 	// add image layer
-	#if DEBUG
-		NSLog(@"kireji*** kImageURLKey value %@", [defaults URLForKey:kImageURLKey]);
-	#endif
-	
-	
 	img = [[NSImage alloc] initWithContentsOfURL:[NSURL URLWithString:[defaults stringForKey:kImageURLKey]]];
 	
 	// try to load alternate image resolution file
-//	NSLog(@"kireji*** imgAltResURLKey: %@", [defaults stringForKey:kImageAltResURLKey]);
 	[img addRepresentation:[NSImageRep imageRepWithContentsOfURL:[NSURL URLWithString:[defaults stringForKey:kImageAltResURLKey]]]];
 	
 	
 	#if DEBUG
 		if (img == nil) {
-			NSLog(@"kireji*** no image!");
-			NSLog(@"kireji*** imgName %@", [defaults URLForKey:kImageURLKey]);
-			//NSLog(@"kireji*** bundle: %@", ssBundle);
+			NSLog(@"%@ no image!", bundleId);
+			NSLog(@"%@ imgName %@", bundleId, [defaults URLForKey:kImageURLKey]);
+			//NSLog(@"%@ bundle: %@", bundleId ssBundle);
+			//NSLog(@"%@ imgAltResURLKey: %@", bundleId, [defaults stringForKey:kImageAltResURLKey]);
 		}
 		else {
-			NSLog(@"kireji*** %@", img);
+			NSLog(@"%@ img:  %@", bundleId, img);
 		}
 	#endif
 	
@@ -375,19 +378,18 @@ NSString* const barsCountKey = @"barsCount";
 	
 	
 	#if DEBUG
-	//        NSLog(@"kireji*** img width, height: %f, %f", img.size.width, img.size.height);
-	//        // displays preview window with in preview mode but screen size when screen saver is active
-	//        NSLog(@"kireji*** window size?: %f, %f", [super bounds].size.width, [super bounds].size.height);
+	//        NSLog(@"%@ img width, height: %f, %f", bundleId, img.size.width, img.size.height);
+	//        // displays preview window width in preview mode but screen size when screen saver is active
+	//        NSLog(@"%@ window size?: %f, %f", bundleId, [super bounds].size.width, [super bounds].size.height);
 	//
 	//        // displays screen size (scaled) -- as intended
-	//        NSLog(@"kireji*** screen size?: %f %f", screenRect.size.width, screenRect.size.height);
-	//        NSLog(@"kireji*** imgPreviewScaleFactor: %f", imgPreviewScaleFactor);
+	//        NSLog(@"%@ screen size?: %f %f", bundleId, screenRect.size.width, screenRect.size.height);
+	//        NSLog(@"%@ imgPreviewScaleFactor: %f", bundleId, imgPreviewScaleFactor);
 	#endif
 	
 	
 	// scale image down when in preview
 	if ([self isPreview]) {
-		// set image bounds
 		imgLayer.bounds = NSMakeRect(
 									 imgLayer.bounds.origin.x,
 									 imgLayer.bounds.origin.y,
@@ -408,10 +410,10 @@ NSString* const barsCountKey = @"barsCount";
 	NSString* yAlign = [defaults stringForKey:kYAlignKey];
 	
 	#if DEBUG
-		NSLog(@"kireji*** xAlign %@", xAlign);
-		NSLog(@"kireji*** yAlign %@", yAlign);
-		NSLog(@"kireji*** screen.height %f", screen_size.height);
-		NSLog(@"kireji*** screen.width %f", screen_size.width);
+		NSLog(@"%@ xAlign %@", bundleId, xAlign);
+		NSLog(@"%@ yAlign %@", bundleId, yAlign);
+		NSLog(@"%@ screen.height %f", bundleId, screen_size.height);
+		NSLog(@"%@ screen.width %f", bundleId, screen_size.width);
 	#endif
 	
 	//position
@@ -544,7 +546,7 @@ NSString* const barsCountKey = @"barsCount";
 
 -(IBAction)cancelClick:(id)sender {
     #if DEBUG
-        NSLog(@"kireji*** CancelClick");
+        NSLog(@"%@ CancelClick", bundleId);
     #endif
 
     //remove selected image effects
@@ -558,11 +560,11 @@ NSString* const barsCountKey = @"barsCount";
 
 -(IBAction)okClick: (id)sender {
     #if DEBUG
-        NSLog(@"kireji*** okClick begin");
+        NSLog(@"%@ okClick begin", bundleId);
     #endif
     
     ScreenSaverDefaults *defaults;
-    defaults = [ScreenSaverDefaults defaultsForModuleWithName:MyModuleName];
+	defaults = [ScreenSaverDefaults defaultsForModuleWithName:bundleId];
     
     // Update our defaults
     [defaults setInteger:[barsCountOption integerValue] forKey:kBarsCountKey];
@@ -583,8 +585,8 @@ NSString* const barsCountKey = @"barsCount";
     }
 
 	#if DEBUG
-		NSLog(@"kireji*** imgSelectedURL is nil: %d", (imgSelectedURL == nil));
-		NSLog(@"kireji*** bar color option --> hex: %@", [self hexadecimalValueOfAnNSColor:barColorOption.color]);
+		NSLog(@"%@ imgSelectedURL is nil: %d", bundleId, (imgSelectedURL == nil));
+		NSLog(@"%@ bar color option --> hex: %@", bundleId, [self hexadecimalValueOfAnNSColor:barColorOption.color]);
 	#endif
     
     [defaults setValue:[self hexadecimalValueOfAnNSColor:barColorOption.color] forKey:kBarColorKey];
@@ -637,7 +639,7 @@ NSString* const barsCountKey = @"barsCount";
     
     
     #if DEBUG
-        NSLog(@"kireji*** okClick end");
+        NSLog(@"%@ okClick end", bundleId);
     #endif
 }
 
@@ -658,27 +660,38 @@ NSString* const barsCountKey = @"barsCount";
     [openDlg setPrompt:@"Choose"];
     // only allow NSImage supported file types
     [openDlg setAllowedFileTypes:NSImage.imageTypes];
-    
-    
-    // Display the dialog and when the OK button is pressed...
-    if ( [openDlg runModal] == NSModalResponseOK )
-    {
-        imgSelectedURL = [openDlg URL];
-        // use alternate resolution image url
-        imgAltResSelectedURL = [self generateImageAlternateResURL:imgSelectedURL];
-        
-        imgSelected = [[NSImage alloc] initWithContentsOfURL:imgSelectedURL];
-        [imgSelected addRepresentation:[NSImageRep imageRepWithContentsOfURL:imgAltResSelectedURL]];
-        
-        [imageWell setImage:imgSelected];
-        
-        #if DEBUG
-//            NSLog(@"kireji*** imageSelectedURL: %@", imgSelectedURL);
-//            NSLog(@"kireji*** imageSelected: %@", imgSelected);
-            NSLog(@"kireji*** imgAltResSelectedURL %@", imgAltResSelectedURL.absoluteString);
-        #endif
-//        }
-    }
+	
+	@try {
+		// Display the dialog and when the OK button is pressed...
+		if ( [openDlg runModal] == NSModalResponseOK )
+		{
+		
+			#if DEBUG
+					NSLog(@"kireji*** selectImageButtonAction HERE");
+			#endif
+			
+			imgSelectedURL = [openDlg URL];
+			// generate alternate resolution image url
+			imgAltResSelectedURL = [self generateImageAlternateResURL:imgSelectedURL];
+
+			imgSelected = [[NSImage alloc] initWithContentsOfURL:imgSelectedURL];
+			[imgSelected addRepresentation:[NSImageRep imageRepWithContentsOfURL:imgAltResSelectedURL]];
+
+			[imageWell setImage:imgSelected];
+
+			#if DEBUG
+				NSLog(@"%@ imageSelectedURL: %@", bundleId, imgSelectedURL);
+				NSLog(@"%@ imageSelected: %@", bundleId, imgSelected);
+				NSLog(@"%@ imgAltResSelectedURL %@", bundleId, imgAltResSelectedURL.absoluteString);
+			#endif
+		}
+	}
+	@catch(NSException* exception) {
+		NSLog(@"%@ exception on image selection: %@; %@", bundleId, exception.name, exception.reason);
+	}
+	@finally {
+		openDlg = nil;
+	}
 }
 
 
@@ -686,7 +699,7 @@ NSString* const barsCountKey = @"barsCount";
 //    barAltColorOption.enabled = [useBarAltColorOption state];
 //}
 
-// TODO: remove conditional blocks: no longer enabling/disabling controls
+
 -(IBAction)evalThemeSelection:(id)sender {
     
     NSString* selectedTheme = [themePopupOption selectedItem].title;
@@ -719,12 +732,12 @@ NSString* const barsCountKey = @"barsCount";
 // Handle selected options from image popup control
 // this function works but is not actually used
 // the only items in the list trigger a function directly
-// this was planned to handle selecting built-in images from the list
+// this was planned to handle selecting built-in images from a list
 -(IBAction)imagePopUpHandler:(id)sender {
     NSString* imagePopUpSelected = [imagePopUp titleOfSelectedItem];
 	
 	#if DEBUG
-		NSLog(@"kireji*** selected item: %@", [imagePopUp selectedItem].title);
+		NSLog(@"%@ selected item: %@", bundleId, [imagePopUp selectedItem].title);
 	#endif
 	
     if ([imagePopUpSelected  isEqual: @"Choose..."]) {
@@ -795,10 +808,10 @@ NSString* const barsCountKey = @"barsCount";
 	NSURL* imgAltResURL = [[imgURL URLByDeletingLastPathComponent] URLByAppendingPathComponent:[[NSArray arrayWithObjects:imgAltResName, @".", imgExt, nil] componentsJoinedByString:@""]];
 	
 	#if DEBUG
-		NSLog(@"kireji*** url file name?: %@", imgAltResName);
-		NSLog(@"kireji*** url file extension?: %@", imgExt);
-		//    NSLog(@"kireji*** url file name has @2x suffix?: %hhd", [imgNameTest hasSuffix:@"@2x"]);
-		NSLog(@"kireji*** assembled file path?: %@", imgAltResURL.absoluteString);
+		NSLog(@"%@ url file name?: %@", bundleId, imgAltResName);
+		NSLog(@"%@ url file extension?: %@", bundleId, imgExt);
+//		NSLog(@"%@ url file name has @2x suffix?: %hhd", bundleId, [imgNameTest hasSuffix:@"@2x"]);
+		NSLog(@"%@ assembled file path?: %@", bundleId, imgAltResURL.absoluteString);
 	#endif
 	
 	return imgAltResURL;
